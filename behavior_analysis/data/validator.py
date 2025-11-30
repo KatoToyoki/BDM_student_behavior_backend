@@ -52,8 +52,7 @@ class DataValidator:
                 return False, "SPSS file contains no columns"
 
             self.logger.info(
-                f"SPSS validation passed: {meta.number_rows:,} rows, "
-                f"{meta.number_columns} columns"
+                f"SPSS validation passed: {meta.number_rows:,} rows, {meta.number_columns} columns"
             )
             return True, None
 
@@ -133,7 +132,7 @@ class DataValidator:
                 )
 
             self.logger.info(
-                f"Conversion validation passed: {parquet_rows:,} rows, " f"{parquet_cols} columns"
+                f"Conversion validation passed: {parquet_rows:,} rows, {parquet_cols} columns"
             )
             return True, None
 
