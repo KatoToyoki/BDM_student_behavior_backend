@@ -6,8 +6,8 @@ Provides functions for computing statistical measures on Spark DataFrames.
 
 from typing import Any
 
-import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
+from pyspark.sql import functions as f
 
 from ..utils.logger import get_logger
 
@@ -35,7 +35,7 @@ def calculate_column_mean(df: DataFrame, column_name: str) -> float | None:
     logger.info(f"Calculating mean for column: {column_name}")
 
     # Calculate mean (automatically excludes NULL values)
-    result = df.select(F.mean(F.col(column_name)).alias("mean")).collect()
+    result = df.select(f.mean(f.col(column_name)).alias("mean")).collect()
 
     if result and result[0]["mean"] is not None:
         mean_value = float(result[0]["mean"])
@@ -78,16 +78,16 @@ def get_column_statistics(df: DataFrame, column_name: str) -> dict[str, Any]:
 
     # Calculate statistics
     stats = df.select(
-        F.count(F.col(column_name)).alias("count"),
-        F.mean(F.col(column_name)).alias("mean"),
-        F.stddev(F.col(column_name)).alias("stddev"),
-        F.min(F.col(column_name)).alias("min"),
-        F.max(F.col(column_name)).alias("max"),
+        f.count(f.col(column_name)).alias("count"),
+        f.mean(f.col(column_name)).alias("mean"),
+        f.stddev(f.col(column_name)).alias("stddev"),
+        f.min(f.col(column_name)).alias("min"),
+        f.max(f.col(column_name)).alias("max"),
     ).collect()[0]
 
     # Count nulls
     null_count = df.select(
-        F.sum(F.when(F.col(column_name).isNull(), 1).otherwise(0)).alias("null_count")
+        f.sum(f.when(f.col(column_name).isNull(), 1).otherwise(0)).alias("null_count")
     ).collect()[0]["null_count"]
 
     total_rows = df.count()
@@ -177,7 +177,7 @@ def get_missing_values_report(df: DataFrame) -> dict[str, dict[str, Any]]:
 
     for column in df.columns:
         null_count = df.select(
-            F.sum(F.when(F.col(column).isNull(), 1).otherwise(0)).alias("null_count")
+            f.sum(f.when(f.col(column).isNull(), 1).otherwise(0)).alias("null_count")
         ).collect()[0]["null_count"]
 
         null_percentage = (null_count / total_rows * 100) if total_rows > 0 else 0
@@ -228,7 +228,7 @@ def calculate_correlation(
     correlation = df.stat.corr(col1, col2, method=method)
 
     logger.info(f"Correlation: {correlation}")
-    return correlation
+    return float(correlation) if correlation is not None else None
 
 
 def print_statistics_report(stats: dict[str, Any]) -> None:

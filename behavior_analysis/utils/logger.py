@@ -5,8 +5,8 @@ Provides centralized logging functionality with both file and console output.
 """
 
 import logging
-import os
 from datetime import datetime
+from pathlib import Path
 
 # Global logger instance
 _logger: logging.Logger | None = None
@@ -45,11 +45,12 @@ def setup_logger(
         return logger
 
     # Create log directory if it doesn't exist
-    os.makedirs(log_dir, exist_ok=True)
+    log_path = Path(log_dir)
+    log_path.mkdir(parents=True, exist_ok=True)
 
     # Create log filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = os.path.join(log_dir, f"behavior_analysis_{timestamp}.log")
+    log_filename = str(log_path / f"behavior_analysis_{timestamp}.log")
 
     # Create formatters
     detailed_formatter = logging.Formatter(

@@ -6,9 +6,10 @@ and conversion status tracking.
 """
 
 import json
-import os
 import shutil
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 
 def ensure_directory_exists(directory_path: str) -> None:
@@ -21,7 +22,7 @@ def ensure_directory_exists(directory_path: str) -> None:
     Raises:
         OSError: If directory creation fails
     """
-    os.makedirs(directory_path, exist_ok=True)
+    Path(directory_path).mkdir(parents=True, exist_ok=True)
 
 
 def check_disk_space(path: str, required_bytes: int) -> bool:
@@ -53,10 +54,11 @@ def get_file_size(file_path: str, human_readable: bool = True) -> str:
     Raises:
         FileNotFoundError: If file doesn't exist
     """
-    if not os.path.exists(file_path):
+    file = Path(file_path)
+    if not file.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    size_bytes = os.path.getsize(file_path)
+    size_bytes: int | float = file.stat().st_size
 
     if not human_readable:
         return str(size_bytes)
@@ -65,7 +67,7 @@ def get_file_size(file_path: str, human_readable: bool = True) -> str:
     for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_bytes < 1024.0:
             return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024.0
+        size_bytes = size_bytes / 1024.0
 
     return f"{size_bytes:.2f} PB"
 
@@ -80,9 +82,8 @@ def get_conversion_marker_path(parquet_path: str) -> str:
     Returns:
         str: Path to marker file
     """
-    parquet_dir = os.path.dirname(parquet_path)
-    parquet_name = os.path.basename(parquet_path)
-    return os.path.join(parquet_dir, f".{parquet_name}.converted")
+    parquet = Path(parquet_path)
+    return str(parquet.parent / f".{parquet.name}.converted")
 
 
 def is_conversion_completed(parquet_path: str) -> bool:
@@ -96,15 +97,17 @@ def is_conversion_completed(parquet_path: str) -> bool:
         bool: True if conversion marker exists and parquet file exists
     """
     marker_path = get_conversion_marker_path(parquet_path)
+    marker = Path(marker_path)
+    parquet = Path(parquet_path)
 
     # Check if both marker file and parquet file exist
-    if not os.path.exists(marker_path):
+    if not marker.exists():
         return False
 
-    if not os.path.exists(parquet_path):
+    if not parquet.exists():
         # Marker exists but parquet doesn't - cleanup marker
         try:
-            os.remove(marker_path)
+            marker.unlink()
         except OSError:
             pass
         return False
@@ -113,7 +116,7 @@ def is_conversion_completed(parquet_path: str) -> bool:
 
 
 def mark_conversion_completed(
-    parquet_path: str, spss_path: str, metadata: dict | None = None
+    parquet_path: str, spss_path: str, metadata: dict[Any, Any] | None = None
 ) -> None:
     """
     Mark conversion as completed by creating a marker file.
@@ -129,24 +132,27 @@ def mark_conversion_completed(
     marker_path = get_conversion_marker_path(parquet_path)
 
     # Prepare conversion metadata
-    conversion_info = {
+    spss = Path(spss_path)
+    parquet = Path(parquet_path)
+    conversion_info: dict[str, Any] = {
         "timestamp": datetime.now().isoformat(),
         "spss_path": spss_path,
         "parquet_path": parquet_path,
-        "spss_size": os.path.getsize(spss_path),
-        "parquet_size": os.path.getsize(parquet_path),
-        "spss_mtime": os.path.getmtime(spss_path),
+        "spss_size": spss.stat().st_size,
+        "parquet_size": parquet.stat().st_size,
+        "spss_mtime": spss.stat().st_mtime,
     }
 
     if metadata:
         conversion_info["metadata"] = metadata
 
     # Write marker file
-    with open(marker_path, "w", encoding="utf-8") as f:
+    marker = Path(marker_path)
+    with marker.open("w", encoding="utf-8") as f:
         json.dump(conversion_info, f, indent=2)
 
 
-def get_conversion_info(parquet_path: str) -> dict | None:
+def get_conversion_info(parquet_path: str) -> dict[Any, Any] | None:
     """
     Get conversion information from marker file.
 
@@ -157,13 +163,15 @@ def get_conversion_info(parquet_path: str) -> dict | None:
         Optional[Dict]: Conversion info dict if marker exists, None otherwise
     """
     marker_path = get_conversion_marker_path(parquet_path)
+    marker = Path(marker_path)
 
-    if not os.path.exists(marker_path):
+    if not marker.exists():
         return None
 
     try:
-        with open(marker_path, encoding="utf-8") as f:
-            return json.load(f)
+        with marker.open(encoding="utf-8") as f:
+            result: dict[Any, Any] = json.load(f)
+            return result
     except (json.JSONDecodeError, OSError):
         return None
 
@@ -194,7 +202,7 @@ def should_reconvert(parquet_path: str, spss_path: str) -> bool:
         return True
 
     # Check if SPSS file has been modified
-    current_mtime = os.path.getmtime(spss_path)
+    current_mtime = Path(spss_path).stat().st_mtime
     previous_mtime = info.get("spss_mtime", 0)
 
     if current_mtime > previous_mtime:
@@ -215,22 +223,21 @@ def cleanup_conversion_markers(parquet_dir: str) -> int:
     Returns:
         int: Number of markers cleaned up
     """
-    if not os.path.exists(parquet_dir):
+    parquet_path = Path(parquet_dir)
+    if not parquet_path.exists():
         return 0
 
     count = 0
-    for filename in os.listdir(parquet_dir):
-        if filename.startswith(".") and filename.endswith(".converted"):
-            marker_path = os.path.join(parquet_dir, filename)
-
+    for item in parquet_path.iterdir():
+        if item.name.startswith(".") and item.name.endswith(".converted"):
             # Extract parquet filename from marker filename
             # .student.parquet.converted -> student.parquet
-            parquet_name = filename[1:-10]  # Remove leading '.' and '.converted'
-            parquet_path = os.path.join(parquet_dir, parquet_name)
+            parquet_name = item.name[1:-10]  # Remove leading '.' and '.converted'
+            expected_parquet = parquet_path / parquet_name
 
-            if not os.path.exists(parquet_path):
+            if not expected_parquet.exists():
                 try:
-                    os.remove(marker_path)
+                    item.unlink()
                     count += 1
                 except OSError:
                     pass

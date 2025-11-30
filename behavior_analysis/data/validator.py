@@ -6,6 +6,7 @@ conversion integrity.
 """
 
 import os
+from pathlib import Path
 
 import pyarrow.parquet as pq
 import pyreadstat
@@ -17,7 +18,7 @@ from ..utils.logger import get_logger
 class DataValidator:
     """Validator for SPSS and Parquet data files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the validator."""
         self.logger = get_logger()
 
@@ -32,7 +33,8 @@ class DataValidator:
             Tuple[bool, Optional[str]]: (is_valid, error_message)
         """
         # Check file exists
-        if not os.path.exists(spss_path):
+        spss = Path(spss_path)
+        if not spss.exists():
             return False, f"File not found: {spss_path}"
 
         # Check file is readable
@@ -72,7 +74,7 @@ class DataValidator:
         Returns:
             Tuple[bool, Optional[str]]: (is_valid, error_message)
         """
-        spss_size = os.path.getsize(spss_path)
+        spss_size = Path(spss_path).stat().st_size
         estimated_parquet_size = estimate_parquet_size(spss_size, compression)
 
         # Add 20% buffer for safety
@@ -101,7 +103,8 @@ class DataValidator:
             Tuple[bool, Optional[str]]: (is_valid, error_message)
         """
         # Check Parquet file exists
-        if not os.path.exists(parquet_path):
+        parquet = Path(parquet_path)
+        if not parquet.exists():
             return False, f"Parquet file not found: {parquet_path}"
 
         try:
@@ -163,7 +166,7 @@ class DataValidator:
             return False, f"Disk space validation failed: {error}"
 
         # If Parquet exists, validate conversion
-        if os.path.exists(parquet_path):
+        if Path(parquet_path).exists():
             valid, error = self.validate_conversion(spss_path, parquet_path)
             if not valid:
                 return False, f"Conversion validation failed: {error}"

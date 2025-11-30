@@ -63,7 +63,7 @@ def main(target_column: str | None = None) -> None:
 
         converter = SPSSToParquetConverter(config.conversion)
 
-        for dataset_name, spss_filename in config.data.SPSS_FILES.items():
+        for dataset_name, _spss_filename in config.data.SPSS_FILES.items():
             spss_path = config.get_spss_path(dataset_name)
             parquet_path = config.get_parquet_path(dataset_name)
 

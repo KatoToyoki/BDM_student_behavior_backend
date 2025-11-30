@@ -23,8 +23,9 @@ class SparkSessionManager:
 
     _instance: Optional["SparkSessionManager"] = None
     _session: SparkSession | None = None
+    _initialized: bool
 
-    def __new__(cls, config: SparkConfig | None = None):
+    def __new__(cls, config: SparkConfig | None = None) -> "SparkSessionManager":
         """
         Create singleton instance.
 
@@ -39,7 +40,7 @@ class SparkSessionManager:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, config: SparkConfig | None = None):
+    def __init__(self, config: SparkConfig | None = None) -> None:
         """
         Initialize the manager.
 
@@ -102,7 +103,7 @@ class SparkSessionManager:
 
         except Exception as e:
             self.logger.error(f"Failed to create Spark session: {e}")
-            raise RuntimeError(f"Spark session creation failed: {e}")
+            raise RuntimeError(f"Spark session creation failed: {e}") from e
 
     def get_session(self) -> SparkSession:
         """
@@ -136,7 +137,9 @@ class SparkSessionManager:
         """
         return self.get_session()
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object
+    ) -> None:
         """
         Context manager exit. Stops Spark session.
 

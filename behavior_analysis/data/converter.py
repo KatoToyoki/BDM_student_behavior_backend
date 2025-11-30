@@ -7,6 +7,7 @@ large files through batched processing.
 
 import os
 import tempfile
+from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -75,7 +76,8 @@ class SPSSToParquetConverter:
             pyreadstat.ReadstatError: If SPSS file cannot be read
         """
         # Validate input file
-        if not os.path.exists(spss_path):
+        spss = Path(spss_path)
+        if not spss.exists():
             raise FileNotFoundError(f"SPSS file not found: {spss_path}")
 
         # Check if already converted
@@ -84,12 +86,13 @@ class SPSSToParquetConverter:
             return True
 
         # Get file size and determine strategy
-        spss_size = os.path.getsize(spss_path)
+        spss_size = spss.stat().st_size
         spss_size_hr = get_file_size(spss_path)
         self.logger.info(f"Converting SPSS file: {spss_path} ({spss_size_hr})")
 
         # Ensure output directory exists
-        parquet_dir = os.path.dirname(parquet_path)
+        parquet = Path(parquet_path)
+        parquet_dir = str(parquet.parent)
         ensure_directory_exists(parquet_dir)
 
         # Check disk space
@@ -129,9 +132,10 @@ class SPSSToParquetConverter:
         except Exception as e:
             self.logger.error(f"Conversion failed: {e}")
             # Clean up partial file if it exists
-            if os.path.exists(parquet_path):
+            parquet_file = Path(parquet_path)
+            if parquet_file.exists():
                 try:
-                    os.remove(parquet_path)
+                    parquet_file.unlink()
                 except OSError:
                     pass
             raise
@@ -183,7 +187,8 @@ class SPSSToParquetConverter:
         )
 
         # Use temporary file to ensure atomic write
-        temp_fd, temp_path = tempfile.mkstemp(suffix=".parquet", dir=os.path.dirname(parquet_path))
+        temp_dir = str(Path(parquet_path).parent)
+        temp_fd, temp_path = tempfile.mkstemp(suffix=".parquet", dir=temp_dir)
         os.close(temp_fd)
 
         writer = None
@@ -225,7 +230,7 @@ class SPSSToParquetConverter:
                 writer.close()
 
             # Move temp file to final location (atomic operation)
-            os.replace(temp_path, parquet_path)
+            Path(temp_path).replace(parquet_path)
 
             self.logger.info(f"Successfully processed {batch_count} batches")
             return True
@@ -234,16 +239,17 @@ class SPSSToParquetConverter:
             # Clean up on error
             if writer:
                 writer.close()
-            if os.path.exists(temp_path):
+            temp_file = Path(temp_path)
+            if temp_file.exists():
                 try:
-                    os.remove(temp_path)
+                    temp_file.unlink()
                 except OSError:
                     pass
             raise
 
     def convert_all(
-        self, spss_files: dict, data_dir: str, parquet_dir: str, force: bool = False
-    ) -> dict:
+        self, spss_files: dict[str, str], data_dir: str, parquet_dir: str, force: bool = False
+    ) -> dict[str, dict[str, bool | str | None]]:
         """
         Convert multiple SPSS files to Parquet.
 
@@ -256,11 +262,13 @@ class SPSSToParquetConverter:
         Returns:
             dict: Results with dataset names as keys and success status as values
         """
-        results = {}
+        results: dict[str, dict[str, bool | str | None]] = {}
+        data_path = Path(data_dir)
+        parquet_path_obj = Path(parquet_dir)
 
         for dataset_name, spss_filename in spss_files.items():
-            spss_path = os.path.join(data_dir, spss_filename)
-            parquet_path = os.path.join(parquet_dir, f"{dataset_name}.parquet")
+            spss_path = str(data_path / spss_filename)
+            parquet_path = str(parquet_path_obj / f"{dataset_name}.parquet")
 
             self.logger.info(f"Processing dataset: {dataset_name}")
 

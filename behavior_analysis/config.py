@@ -6,7 +6,8 @@ and conversion options.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -19,11 +20,11 @@ class DataConfig:
     LOG_DIR: str = "/home/jovyan/workspace/artifacts/logs"
 
     # SPSS files mapping
-    SPSS_FILES: dict[str, str] = None
+    SPSS_FILES: dict[str, str] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize SPSS files mapping after dataclass creation."""
-        if self.SPSS_FILES is None:
+        if not self.SPSS_FILES:
             self.SPSS_FILES = {
                 "student": "CY08MSP_STU_QQQ.SAV",
                 "teacher": "CY08MSP_TCH_QQQ.SAV",
@@ -82,7 +83,7 @@ class AppConfig:
     spark: SparkConfig
     conversion: ConversionConfig
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize all configuration sections."""
         self.data = DataConfig()
         self.spark = SparkConfig()
@@ -92,13 +93,13 @@ class AppConfig:
         """Get full path to SPSS file for a given dataset."""
         if dataset_name not in self.data.SPSS_FILES:
             raise ValueError(f"Unknown dataset: {dataset_name}")
-        return os.path.join(self.data.DATA_DIR, self.data.SPSS_FILES[dataset_name])
+        return str(Path(self.data.DATA_DIR) / self.data.SPSS_FILES[dataset_name])
 
     def get_parquet_path(self, dataset_name: str) -> str:
         """Get full path to Parquet file for a given dataset."""
         if dataset_name not in self.data.SPSS_FILES:
             raise ValueError(f"Unknown dataset: {dataset_name}")
-        return os.path.join(self.data.PARQUET_DIR, f"{dataset_name}.parquet")
+        return str(Path(self.data.PARQUET_DIR) / f"{dataset_name}.parquet")
 
 
 # Global configuration instance
