@@ -1,0 +1,201 @@
+x-spark-common: &spark-common
+  image: spark:4.0.0-java21-python3
+  platform: linux/arm64
+  volumes:
+    - ../../behavior_analysis:/opt/workspace/behavior_analysis
+    # - ../../main.py:/opt/workspace/main.py
+    - ../../data:/data
+    - ../../artifacts:/artifacts
+    - ../logs/spark-logs:/opt/spark/logs
+    - ../config/spark-conf:/opt/spark/conf/custom:ro
+    - spark-tmp:/tmp/spark
+  environment:
+    - SPARK_PUBLIC_DNS=localhost
+    - PYSPARK_PYTHON=/usr/bin/python3
+    - PYSPARK_DRIVER_PYTHON=/usr/bin/python3
+    - SPARK_CONF_DIR=/opt/spark/conf
+    - SPARK_LOG_DIR=/opt/spark/logs
+    - SPARK_PID_DIR=/tmp/spark
+  ulimits:
+    nofile:
+      soft: 65536
+      hard: 65536
+    memlock: -1
+  networks:
+    - spark-cluster
+
+x-spark-worker-common: &spark-worker-common
+  <<: *spark-common
+  environment:
+    - SPARK_WORKER_MEMORY=2G
+    - SPARK_WORKER_CORES=2
+    - SPARK_WORKER_INSTANCES=1
+    - SPARK_WORKER_DIR=/tmp/spark/work
+    - SPARK_PUBLIC_DNS=localhost
+    - PYSPARK_PYTHON=/usr/bin/python3
+    - PYSPARK_DRIVER_PYTHON=/usr/bin/python3
+    - SPARK_CONF_DIR=/opt/spark/conf
+    - SPARK_LOG_DIR=/opt/spark/logs
+    - SPARK_PID_DIR=/tmp/spark
+    - JAVA_OPTS=-Xmx3g -XX:+UseG1GC -XX:+UseStringDeduplication -XX:MaxDirectMemorySize=1g
+  deploy:
+    resources:
+      limits:
+        memory: 3G
+        cpus: "3"
+      reservations:
+        memory: 1G
+        cpus: "2"
+  healthcheck:
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 60s
+  depends_on:
+    spark-master:
+      condition: service_healthy
+
+services:
+  # Spark Master
+  spark-master:
+    <<: *spark-common
+    hostname: spark-master
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "7077",
+        "--webui-port",
+        "8080",
+        "--properties-file",
+        "/opt/spark/conf/custom/spark-defaults.conf",
+      ]
+    ports:
+      - "8080:8080" # Spark Master Web UI
+      - "7077:7077" # Spark Master RPC
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+      - SPARK_LOCAL_HOSTNAME=spark-master
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: "2"
+        reservations:
+          memory: 1G
+          cpus: "1"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+
+  # Spark Worker 1
+  spark-worker-1:
+    <<: *spark-worker-common
+    hostname: spark-worker-1
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "spark://spark-master:7077",
+        "--host",
+        "spark-worker-1",
+        "--webui-port",
+        "8081",
+        "--properties-file",
+        "/opt/spark/conf/custom/spark-defaults.conf",
+      ]
+    ports:
+      - "8081:8081"
+    environment:
+      - SPARK_WORKER_WEBUI_PORT=8081
+      - SPARK_WORKER_HOST=spark-worker-1
+      - SPARK_LOCAL_HOSTNAME=spark-worker-1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+
+  # Spark Worker 2
+  spark-worker-2:
+    <<: *spark-worker-common
+    hostname: spark-worker-2
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "spark://spark-master:7077",
+        "--host",
+        "spark-worker-2",
+        "--webui-port",
+        "8082",
+        "--properties-file",
+        "/opt/spark/conf/custom/spark-defaults.conf",
+      ]
+    ports:
+      - "8082:8082"
+    environment:
+      - SPARK_WORKER_WEBUI_PORT=8082
+      - SPARK_WORKER_HOST=spark-worker-2
+      - SPARK_LOCAL_HOSTNAME=spark-worker-2
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082"]
+
+  # Jupyter Notebook with PySpark
+  jupyter:
+    build:
+      context: ../..
+      dockerfile: docker/images/Dockerfile.jupyter
+    platform: linux/arm64
+    ports:
+      - "8888:8888" # Jupyter Notebook
+    volumes:
+      - ../../behavior_analysis:/home/jovyan/workspace/behavior_analysis
+      # - ../../main.py:/home/jovyan/workspace/main.py
+      - ../../data:/data
+      - ../../artifacts:/artifacts
+      - ../../artifacts:/home/jovyan/workspace/artifacts
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=spark://spark-master:7077
+      - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 pyspark-shell
+      - PYSPARK_PYTHON=python3.10
+      - PYSPARK_DRIVER_PYTHON=python3.10
+      - SPARK_CONF_DIR=/opt/spark/conf
+      - SPARK_LOG_DIR=/home/jovyan/spark-logs
+      - SPARK_OPTS=--conf spark.sql.adaptive.enabled=true --conf spark.sql.adaptive.coalescePartitions.enabled=true
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker-1:
+        condition: service_healthy
+      spark-worker-2:
+        condition: service_healthy
+    networks:
+      - spark-cluster
+
+volumes:
+  spark-tmp:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=2g,uid=1001,gid=1001
+
+networks:
+  spark-cluster:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: spark-br1
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1

@@ -1,0 +1,39 @@
+FROM quay.io/jupyter/pyspark-notebook:spark-4.0.0
+
+# Name your environment and choose the Python version
+ARG env_name=python310
+ARG py_ver=3.10
+
+USER root
+
+# Create the conda environment with Python 3.10 and PySpark dependencies
+RUN mamba create --yes -p "${CONDA_DIR}/envs/${env_name}" \
+    python=${py_ver} \
+    ipykernel \
+    jupyterlab \
+    pyspark=4.0.0 \
+    py4j \
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    scipy \
+    scikit-learn \
+    plotly \
+    pyreadstat \
+    findspark && \
+    mamba clean --all -f -y
+
+# Set environment variables for Spark and Python
+ENV PYSPARK_PYTHON="${CONDA_DIR}/envs/${env_name}/bin/python"
+ENV PYSPARK_DRIVER_PYTHON="${CONDA_DIR}/envs/${env_name}/bin/python"
+ENV SPARK_VERSION=4.0.0
+
+USER $NB_UID
+
+# Create Python kernel and link it to jupyter
+RUN "${CONDA_DIR}/envs/${env_name}/bin/python" -m ipykernel install --user --name="${env_name}" --display-name="Python 3.10 (Spark 4.0.0)" && \
+    fix-permissions "${CONDA_DIR}" 2>/dev/null || true && \
+    fix-permissions "/home/${NB_USER}" 2>/dev/null || true
+
+WORKDIR $HOME

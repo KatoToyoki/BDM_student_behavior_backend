@@ -1,0 +1,5 @@
+# Main Docker Compose file
+# Run from project root: docker-compose up
+
+include:
+  - ./docker/compose/docker-compose.yaml
