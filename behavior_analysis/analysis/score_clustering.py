@@ -12,11 +12,10 @@ Uses sampling weights (W_FSTUWT) for global population statistics.
 
 from typing import Any
 
-from pyspark.sql import DataFrame
+from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as f
 
 from ..utils.logger import get_logger
-
 
 # PISA Math Score Thresholds (Official Levels)
 SCORE_THRESHOLDS = {
@@ -26,7 +25,7 @@ SCORE_THRESHOLDS = {
 }
 
 
-def categorize_score(score_column: str = "PV1MATH") -> f.Column:
+def categorize_score(score_column: str = "PV1MATH") -> Column:
     """
     Create a Spark SQL expression to categorize scores into levels.
 
@@ -115,10 +114,9 @@ def get_cluster_statistics(
             f.count(f.col(score_column)).alias("count"),
             f.sum(f.col(weight_column)).alias("weighted_count"),
             f.mean(f.col(score_column)).alias("mean_score"),
-            (
-                f.sum(f.col(score_column) * f.col(weight_column))
-                / f.sum(f.col(weight_column))
-            ).alias("weighted_mean_score"),
+            (f.sum(f.col(score_column) * f.col(weight_column)) / f.sum(f.col(weight_column))).alias(
+                "weighted_mean_score"
+            ),
             f.min(f.col(score_column)).alias("min_score"),
             f.max(f.col(score_column)).alias("max_score"),
         )
@@ -126,9 +124,7 @@ def get_cluster_statistics(
     )
 
     # Calculate total weighted count for percentage calculation
-    total_weighted = df.select(f.sum(f.col(weight_column)).alias("total")).collect()[0][
-        "total"
-    ]
+    total_weighted = df.select(f.sum(f.col(weight_column)).alias("total")).collect()[0]["total"]
 
     # Format results
     result = {}
@@ -139,20 +135,14 @@ def get_cluster_statistics(
         result[cluster_level] = {
             "sample_count": row["count"],
             "weighted_count": float(weighted_count) if weighted_count else 0,
-            "mean_score": (
-                float(row["mean_score"]) if row["mean_score"] is not None else None
-            ),
+            "mean_score": (float(row["mean_score"]) if row["mean_score"] is not None else None),
             "weighted_mean_score": (
                 float(row["weighted_mean_score"])
                 if row["weighted_mean_score"] is not None
                 else None
             ),
-            "min_score": (
-                float(row["min_score"]) if row["min_score"] is not None else None
-            ),
-            "max_score": (
-                float(row["max_score"]) if row["max_score"] is not None else None
-            ),
+            "min_score": (float(row["min_score"]) if row["min_score"] is not None else None),
+            "max_score": (float(row["max_score"]) if row["max_score"] is not None else None),
             "population_percentage": (
                 (float(weighted_count) / total_weighted * 100) if total_weighted else 0
             ),
@@ -189,9 +179,7 @@ def print_clustering_report(statistics: dict[str, Any], verbose: bool = True) ->
         stats = statistics[level]
         print(f"\n{cluster_names[level]}", flush=True)
         print("-" * 80, flush=True)
-        print(
-            f"  Sample Size:           {stats['sample_count']:,} students", flush=True
-        )
+        print(f"  Sample Size:           {stats['sample_count']:,} students", flush=True)
         print(
             f"  Weighted Population:   {stats['weighted_count']:,.0f} students",
             flush=True,

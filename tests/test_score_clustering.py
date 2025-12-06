@@ -9,7 +9,6 @@ Tests the score-based clustering functionality including:
 
 import pytest
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as f
 
 from behavior_analysis.analysis.score_clustering import (
     add_cluster_labels,
@@ -43,9 +42,7 @@ def sample_student_data(spark: SparkSession) -> DataFrame:
         ("S007", 607.0, 0.95),  # High (boundary)
         ("S008", 750.0, 1.15),  # High
     ]
-    return spark.createDataFrame(
-        data, schema="student_id STRING, PV1MATH DOUBLE, W_FSTUWT DOUBLE"
-    )
+    return spark.createDataFrame(data, schema="student_id STRING, PV1MATH DOUBLE, W_FSTUWT DOUBLE")
 
 
 class TestScoreCategorization:
@@ -54,25 +51,19 @@ class TestScoreCategorization:
     def test_categorize_low_scores(self, spark: SparkSession):
         """Test that scores < 482 are categorized as 'low'."""
         df = spark.createDataFrame([(400,), (481.9,), (0,)], schema="PV1MATH DOUBLE")
-        result = (
-            df.withColumn("category", categorize_score()).select("category").collect()
-        )
+        result = df.withColumn("category", categorize_score()).select("category").collect()
         assert all(row["category"] == "low" for row in result)
 
     def test_categorize_middle_scores(self, spark: SparkSession):
         """Test that scores 482-606 are categorized as 'middle'."""
         df = spark.createDataFrame([(482,), (550,), (606,)], schema="PV1MATH DOUBLE")
-        result = (
-            df.withColumn("category", categorize_score()).select("category").collect()
-        )
+        result = df.withColumn("category", categorize_score()).select("category").collect()
         assert all(row["category"] == "middle" for row in result)
 
     def test_categorize_high_scores(self, spark: SparkSession):
         """Test that scores ≥ 607 are categorized as 'high'."""
         df = spark.createDataFrame([(607,), (650,), (800,)], schema="PV1MATH DOUBLE")
-        result = (
-            df.withColumn("category", categorize_score()).select("category").collect()
-        )
+        result = df.withColumn("category", categorize_score()).select("category").collect()
         assert all(row["category"] == "high" for row in result)
 
     def test_boundary_values(self, spark: SparkSession):
@@ -82,9 +73,7 @@ class TestScoreCategorization:
             schema="PV1MATH DOUBLE, expected STRING",
         )
         result = (
-            df.withColumn("category", categorize_score())
-            .select("category", "expected")
-            .collect()
+            df.withColumn("category", categorize_score()).select("category", "expected").collect()
         )
         for row in result:
             assert row["category"] == row["expected"]
@@ -178,7 +167,7 @@ class TestClusterStatistics:
         stats = get_cluster_statistics(clustered_df)
 
         # When weights differ, weighted mean should differ from sample mean
-        for level, level_stats in stats.items():
+        for _level, level_stats in stats.items():
             if level_stats["mean_score"] is not None:
                 # Just verify both statistics exist and are reasonable
                 assert level_stats["weighted_mean_score"] is not None
@@ -221,9 +210,7 @@ class TestIntegration:
         # Verify results
         assert len(stats) == 3
         assert all(isinstance(s["sample_count"], int) for s in stats.values())
-        assert all(
-            isinstance(s["population_percentage"], float) for s in stats.values()
-        )
+        assert all(isinstance(s["population_percentage"], float) for s in stats.values())
 
     def test_data_consistency(self, sample_student_data: DataFrame):
         """Test that clustering doesn't lose or duplicate data."""

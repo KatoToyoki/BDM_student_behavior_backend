@@ -5,7 +5,7 @@ Provides functions to generate charts and visualizations for clustering results,
 including pie charts, bar charts, and statistical summaries.
 """
 
-import os
+from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -160,9 +160,7 @@ def create_bar_chart(
 
     ax.set_xlabel("Score Cluster", fontsize=12, weight="bold")
     ax.set_ylabel(metric, fontsize=12, weight="bold")
-    ax.set_title(
-        f"Score-Based Clustering by {metric}", fontsize=14, weight="bold", pad=20
-    )
+    ax.set_title(f"Score-Based Clustering by {metric}", fontsize=14, weight="bold", pad=20)
     ax.grid(axis="y", alpha=0.3, linestyle="--")
 
     plt.tight_layout()
@@ -300,27 +298,26 @@ def create_all_visualizations(
     logger = get_logger()
 
     # Create output directory if it doesn't exist
-    os.makedirs(output_directory, exist_ok=True)
+    output_path = Path(output_directory)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     # Generate all visualizations
     results = {
         "pie_chart": create_pie_chart(
-            statistics, os.path.join(output_directory, "score_clustering_pie_chart.png")
+            statistics, str(output_path / "score_clustering_pie_chart.png")
         ),
         "bar_chart": create_bar_chart(
             statistics,
             metric="Weighted Population",
-            output_path=os.path.join(
-                output_directory, "score_clustering_bar_chart.png"
-            ),
+            output_path=str(output_path / "score_clustering_bar_chart.png"),
         ),
         "comparison_chart": create_comparison_chart(
             statistics,
-            os.path.join(output_directory, "score_clustering_comparison_chart.png"),
+            str(output_path / "score_clustering_comparison_chart.png"),
         ),
         "statistics_table": export_statistics_table(
             statistics,
-            os.path.join(output_directory, "score_clustering_statistics.csv"),
+            str(output_path / "score_clustering_statistics.csv"),
         ),
     }
 

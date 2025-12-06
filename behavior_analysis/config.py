@@ -16,7 +16,7 @@ def _detect_environment() -> str:
     if os.environ.get("SPARK_MASTER"):
         return "docker_cluster"
     # Check if running in Docker Jupyter
-    if os.path.exists("/home/jovyan"):
+    if Path("/home/jovyan").exists():
         return "docker_local"
     return "local"
 
