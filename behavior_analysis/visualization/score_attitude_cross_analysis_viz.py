@@ -6,7 +6,6 @@ attitude clusters and score-based clusters using pandas and seaborn.
 """
 
 from pathlib import Path
-from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,7 +104,7 @@ def create_grouped_bar_chart(
     ax.set_xticks(x)
     ax.set_xticklabels(cross_tab.index, rotation=0)
     ax.legend(title="Attitude Cluster", fontsize=10, title_fontsize=11)
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x/1e6)}M"))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{int(x / 1e6)}M"))
 
     plt.tight_layout()
     full_path = Path(output_path)
@@ -320,8 +319,6 @@ def create_all_score_attitude_visualizations(
         ),
     }
 
-    logger.info(
-        f"Generated {len(visualizations)} score-attitude cross-analysis visualizations"
-    )
+    logger.info(f"Generated {len(visualizations)} score-attitude cross-analysis visualizations")
 
     return visualizations

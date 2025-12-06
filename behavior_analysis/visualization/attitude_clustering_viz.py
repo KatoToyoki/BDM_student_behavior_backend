@@ -137,9 +137,7 @@ def create_attitude_bar_chart(
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = ["#95E1D3", "#FDB750", "#FF6B6B"]
 
-    bars = ax.bar(
-        df["Cluster"], df[metric], color=colors, edgecolor="black", linewidth=1.5
-    )
+    bars = ax.bar(df["Cluster"], df[metric], color=colors, edgecolor="black", linewidth=1.5)
 
     # Add value labels on bars
     for bar in bars:
@@ -196,9 +194,7 @@ def create_attitude_comparison_chart(
     df = prepare_attitude_visualization_data(statistics)
 
     # Normalize for comparison
-    df["Sample Count (normalized)"] = (
-        df["Sample Count"] / df["Sample Count"].max() * 100
-    )
+    df["Sample Count (normalized)"] = df["Sample Count"] / df["Sample Count"].max() * 100
     df["Weighted Population (normalized)"] = (
         df["Weighted Population"] / df["Weighted Population"].max() * 100
     )
