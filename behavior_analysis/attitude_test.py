@@ -16,9 +16,9 @@ from .analysis.attitude_clustering import (
     validate_attitude_columns,
 )
 from .config import load_config
-from .visualization.attitude_clustering_viz import create_all_attitude_visualizations
 from .data.spark_manager import SparkSessionManager
 from .utils.logger import get_logger
+from .visualization.attitude_clustering_viz import create_all_attitude_visualizations
 
 
 def test_attitude_clustering() -> None:
@@ -55,15 +55,13 @@ def test_attitude_clustering() -> None:
 
         # Display sample data
         print("Sample attitude data:", flush=True)
-        student_df.select(
-            "ST296Q01JA", "ST062Q01TA", "MATHMOT", "PERSEVAGR", "W_FSTUWT"
-        ).show(5, truncate=False)
+        student_df.select("ST296Q01JA", "ST062Q01TA", "MATHMOT", "PERSEVAGR", "W_FSTUWT").show(
+            5, truncate=False
+        )
         print()
 
         # Prepare data (handle missing values)
-        print(
-            "Preparing attitude data (removing rows with missing values)...", flush=True
-        )
+        print("Preparing attitude data (removing rows with missing values)...", flush=True)
         student_df_clean = prepare_attitude_data(student_df)
         print("✓ Data prepared\n", flush=True)
 

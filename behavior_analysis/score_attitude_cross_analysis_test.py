@@ -4,6 +4,9 @@ Score-Attitude Cross-Dimensional Analysis Test Module.
 Tests and demonstrates the relationship analysis between attitude and score clustering.
 """
 
+from .analysis.attitude_clustering import (
+    add_attitude_labels,
+)
 from .analysis.score_attitude_cross_analysis import (
     create_cross_tabulation,
     export_cross_tabulation,
@@ -13,10 +16,9 @@ from .analysis.score_attitude_cross_analysis import (
 )
 from .analysis.score_clustering import (
     add_cluster_labels as add_score_labels,
-    categorize_score,
 )
-from .analysis.attitude_clustering import (
-    add_attitude_labels,
+from .analysis.score_clustering import (
+    categorize_score,
 )
 from .config import load_config
 from .data.spark_manager import SparkSessionManager
@@ -55,7 +57,6 @@ def test_score_attitude_cross_analysis() -> None:
 
         # Prepare score clustering
         print("Preparing score clustering...", flush=True)
-        from pyspark.sql import functions as f
 
         df_with_score = student_df.withColumn(
             "score_cluster", categorize_score(score_column="PV1MATH")
@@ -68,9 +69,9 @@ def test_score_attitude_cross_analysis() -> None:
         # Prepare attitude clustering
         print("Preparing attitude clustering...", flush=True)
         from .analysis.attitude_clustering import (
-            prepare_attitude_data,
             create_attitude_features,
             perform_attitude_clustering,
+            prepare_attitude_data,
         )
 
         df_clean = prepare_attitude_data(df_with_score_labels)
@@ -116,9 +117,7 @@ def test_score_attitude_cross_analysis() -> None:
         print("Generating visualizations...", flush=True)
         print("=" * 70 + "\n", flush=True)
 
-        visualizations = create_all_score_attitude_visualizations(
-            cross_tab, artifact_path
-        )
+        visualizations = create_all_score_attitude_visualizations(cross_tab, artifact_path)
 
         print("✓ Visualizations generated:", flush=True)
         for viz_name, viz_path in visualizations.items():
@@ -132,8 +131,6 @@ def test_score_attitude_cross_analysis() -> None:
         print("=" * 70 + "\n", flush=True)
 
     except Exception as e:
-        logger.error(
-            f"Score-attitude cross-dimensional analysis test failed: {e}", exc_info=True
-        )
+        logger.error(f"Score-attitude cross-dimensional analysis test failed: {e}", exc_info=True)
         print(f"\n✗ Error: {e}\n", flush=True)
         raise
