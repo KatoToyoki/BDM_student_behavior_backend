@@ -159,6 +159,7 @@ services:
       - "8888:8888" # Jupyter Notebook
     volumes:
       - ../../behavior_analysis:/home/jovyan/workspace/behavior_analysis
+      - ../../tests:/home/jovyan/workspace/tests
       # - ../../main.py:/home/jovyan/workspace/main.py
       - ../../data:/data
       - ../../artifacts:/artifacts
