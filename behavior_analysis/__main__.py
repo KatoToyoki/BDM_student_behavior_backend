@@ -7,20 +7,80 @@ This module orchestrates the complete workflow:
 3. Perform statistical analysis
 """
 
+import logging
 import sys
 import warnings
+
+from pyspark.sql import DataFrame
 
 from .analysis.score_clustering import (
     add_cluster_labels,
     get_cluster_statistics,
     print_clustering_report,
 )
-from .config import load_config
+from .config import AppConfig, load_config
 from .data.converter import SPSSToParquetConverter
 from .data.spark_manager import SparkSessionManager
 from .utils.file_utils import ensure_directory_exists
 from .utils.logger import setup_logger
 from .visualization.score_clustering_viz import create_all_visualizations
+
+
+def perform_score_clustering_analysis(
+    student_df: DataFrame, config: AppConfig, logger: logging.Logger
+) -> None:
+    """
+    Perform score-based clustering analysis on student data using math scores.
+
+    This function performs a complete score-based clustering workflow:
+    1. Adds cluster labels to students based on their PV1MATH scores
+       (dividing them into low/medium/high performance groups)
+    2. Computes weighted cluster statistics using PISA sample weights (W_FSTUWT)
+    3. Prints a detailed clustering report to console
+    4. Logs comprehensive statistics for each cluster
+    5. Generates and saves visualizations to the artifacts directory
+
+    Args:
+        student_df: Spark DataFrame containing student data with PV1MATH
+                   and W_FSTUWT columns
+        config: Application configuration containing paths and settings
+        logger: Logger instance for recording analysis steps and results
+    """
+    # Add cluster labels based on PV1MATH scores
+    logger.info("\nPerforming score-based clustering...")
+    clustered_df = add_cluster_labels(
+        student_df, score_column="PV1MATH", cluster_column="score_cluster"
+    )
+
+    # Get cluster statistics
+    logger.info("Computing cluster statistics with weights...")
+    cluster_stats = get_cluster_statistics(
+        clustered_df,
+        score_column="PV1MATH",
+        weight_column="W_FSTUWT",
+        cluster_column="score_cluster",
+    )
+
+    # Print clustering report
+    print_clustering_report(cluster_stats, verbose=True)
+
+    # Log statistics
+    logger.info("\nCluster Statistics Summary:")
+    for level, stats in sorted(cluster_stats.items()):
+        logger.info(f"\n{level.upper()}:")
+        logger.info(f"  Sample Size: {stats['sample_count']:,}")
+        logger.info(f"  Weighted Population: {stats['weighted_count']:,.0f}")
+        logger.info(f"  Population %: {stats['population_percentage']:.2f}%")
+        if stats["mean_score"] is not None:
+            logger.info(f"  Mean Score: {stats['mean_score']:.2f}")
+        if stats["weighted_mean_score"] is not None:
+            logger.info(f"  Weighted Mean Score: {stats['weighted_mean_score']:.2f}")
+
+    # Generate visualizations
+    logger.info("\nGenerating visualizations...")
+    create_all_visualizations(
+        cluster_stats, output_directory=config.get_artifact_path("visualizations")
+    )
 
 
 def main(target_column: str | None = None) -> None:
@@ -98,65 +158,31 @@ def main(target_column: str | None = None) -> None:
         logger.info("PHASE 2: Score-based Clustering Analysis")
         logger.info("-" * 70)
 
-        # Initialize Spark session
-        spark_manager = SparkSessionManager(config.spark)
-        spark = spark_manager.get_session()
-        logger.info("Spark session initialized")
+        # Initialize Spark session with context manager for automatic cleanup
+        with SparkSessionManager(config.spark) as spark:
+            logger.info("Spark session initialized")
 
-        # Load student data
-        student_parquet_path = config.get_parquet_path("student")
-        logger.info(f"\nLoading student data from: {student_parquet_path}")
+            # Load student data
+            student_parquet_path = config.get_parquet_path("student")
+            logger.info(f"\nLoading student data from: {student_parquet_path}")
 
-        student_df = spark.read.parquet(student_parquet_path)
-        logger.info(f"Student data loaded: {student_df.count():,} records")
+            student_df = spark.read.parquet(student_parquet_path)
+            logger.info(f"Student data loaded: {student_df.count():,} records")
 
-        # Verify required columns exist
-        required_columns = ["PV1MATH", "W_FSTUWT"]
-        missing_columns = [col for col in required_columns if col not in student_df.columns]
-        if missing_columns:
-            raise ValueError(f"Missing required columns: {missing_columns}")
+            # Verify required columns exist
+            required_columns = ["PV1MATH", "W_FSTUWT"]
+            missing_columns = [col for col in required_columns if col not in student_df.columns]
+            if missing_columns:
+                raise ValueError(f"Missing required columns: {missing_columns}")
 
-        logger.info(f"Required columns verified: {required_columns}")
+            logger.info(f"Required columns verified: {required_columns}")
 
-        # Add cluster labels based on PV1MATH scores
-        logger.info("\nPerforming score-based clustering...")
-        clustered_df = add_cluster_labels(
-            student_df, score_column="PV1MATH", cluster_column="score_cluster"
-        )
-
-        # Get cluster statistics
-        logger.info("Computing cluster statistics with weights...")
-        cluster_stats = get_cluster_statistics(
-            clustered_df,
-            score_column="PV1MATH",
-            weight_column="W_FSTUWT",
-            cluster_column="score_cluster",
-        )
-
-        # Print clustering report
-        print_clustering_report(cluster_stats, verbose=True)
-
-        # Log statistics
-        logger.info("\nCluster Statistics Summary:")
-        for level, stats in sorted(cluster_stats.items()):
-            logger.info(f"\n{level.upper()}:")
-            logger.info(f"  Sample Size: {stats['sample_count']:,}")
-            logger.info(f"  Weighted Population: {stats['weighted_count']:,.0f}")
-            logger.info(f"  Population %: {stats['population_percentage']:.2f}%")
-            if stats["mean_score"] is not None:
-                logger.info(f"  Mean Score: {stats['mean_score']:.2f}")
-            if stats["weighted_mean_score"] is not None:
-                logger.info(f"  Weighted Mean Score: {stats['weighted_mean_score']:.2f}")
-
-        # Generate visualizations
-        logger.info("\nGenerating visualizations...")
-        create_all_visualizations(
-            cluster_stats, output_directory=config.get_artifact_path("visualizations")
-        )
+            # Perform score-based clustering analysis
+            perform_score_clustering_analysis(student_df, config, logger)
 
     except KeyboardInterrupt:
         logger.info("\nApplication interrupted by user")
-        print("\n\n⚠ Application interrupted by user", flush=True)
+        print("\n\n⚠ Application interrupted by user")
         sys.exit(1)
 
     except Exception as e:  # noqa: BLE001
