@@ -89,7 +89,9 @@ def prepare_attitude_data(
         logger.info(f"  {col_name}: {null_count} missing ({missing_rate:.2f}%)")
 
     # Build condition to drop rows where any attitude column is null
-    condition = None
+    from pyspark.sql import Column
+
+    condition: Column | None = None
     for col in attitude_cols:
         col_condition = f.col(col).isNotNull()
         condition = col_condition if condition is None else condition & col_condition
@@ -98,6 +100,8 @@ def prepare_attitude_data(
     total_weighted = df.select(f.sum(f.col(weight_column)).alias("total")).collect()[0]["total"]
     total_weighted = float(total_weighted) if total_weighted else 0
 
+    # Filter with type assertion since we know condition is not None after the loop
+    assert condition is not None
     df_clean = df.filter(condition)
     clean_count = df_clean.count()
     clean_weighted = df_clean.select(f.sum(f.col(weight_column)).alias("total")).collect()[0][
@@ -235,7 +239,9 @@ def perform_attitude_clustering(
 
     # Get cluster centers and auto-assign labels
     centers = model.clusterCenters()
-    label_mapping = _assign_cluster_labels(centers)
+    # Convert numpy arrays to list of lists for type compatibility
+    centers_list = [center.tolist() for center in centers]
+    label_mapping = _assign_cluster_labels(centers_list)
 
     logger.info("Cluster centers and assigned labels:")
     for cluster_id, center in enumerate(centers):
