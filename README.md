@@ -2,35 +2,7 @@
 
 ## Setup Instructions
 
-### 環境適應指南
-
-本專案支援多種開發環境。根據你的工作環境選擇相應的設置方式：
-
-#### **1. 本地開發（不使用容器）**
-
-如果你想在本地機器上直接開發：
-
-```bash
-# 安裝 Python 3.10+
-# macOS 用戶可使用 Homebrew
-brew install python@3.10
-
-# 安裝 uv 套件管理工具
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 同步依賴
-uv sync --all-groups
-
-# 啟用開發環境
-source .venv/bin/activate  # Linux/macOS
-# 或
-.venv\Scripts\activate  # Windows
-
-# 執行應用
-python -m behavior_analysis
-```
-
-#### **2. Docker 容器開發（推薦）**
+#### **Docker 容器開發）**
 
 如果你使用 Docker，有兩種方式工作：
 
