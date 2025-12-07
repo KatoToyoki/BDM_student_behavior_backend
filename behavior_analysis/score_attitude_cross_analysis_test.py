@@ -74,10 +74,10 @@ def test_score_attitude_cross_analysis() -> None:
             prepare_attitude_data,
         )
 
-        df_clean = prepare_attitude_data(df_with_score_labels)
+        df_clean, _ = prepare_attitude_data(df_with_score_labels, weight_column="W_FSTUWT")
         df_with_features = create_attitude_features(df_clean)
-        df_clustered = perform_attitude_clustering(df_with_features, num_clusters=3)
-        df_with_attitude_labels = add_attitude_labels(df_clustered)
+        df_clustered, label_mapping = perform_attitude_clustering(df_with_features, num_clusters=3)
+        df_with_attitude_labels = add_attitude_labels(df_clustered, label_mapping)
         print("✓ Attitude clustering completed\n", flush=True)
 
         # Create cross-tabulation

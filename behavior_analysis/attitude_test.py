@@ -5,6 +5,7 @@ Provides testing functionality for attitude-based clustering analysis.
 """
 
 import sys
+from pathlib import Path
 
 from .analysis.attitude_clustering import (
     add_attitude_labels,
@@ -62,8 +63,14 @@ def test_attitude_clustering() -> None:
 
         # Prepare data (handle missing values)
         print("Preparing attitude data (removing rows with missing values)...", flush=True)
-        student_df_clean = prepare_attitude_data(student_df)
+        student_df_clean, missing_stats = prepare_attitude_data(student_df, weight_column="W_FSTUWT")
         print("✓ Data prepared\n", flush=True)
+
+        # Display missing value summary
+        print("Missing Value Summary:", flush=True)
+        print(f"  Sample Loss: {missing_stats['sample_loss']['removed_count']:,} rows ({missing_stats['sample_loss']['loss_rate']:.2f}%)", flush=True)
+        print(f"  Weighted Population Loss: {missing_stats['weighted_loss']['removed_weighted']:,.0f} ({missing_stats['weighted_loss']['weighted_loss_rate']:.2f}%)", flush=True)
+        print()
 
         # Create features
         print("Creating attitude features with Z-score standardization...", flush=True)
@@ -72,12 +79,12 @@ def test_attitude_clustering() -> None:
 
         # Perform clustering
         print("Performing K-means clustering (k=3)...", flush=True)
-        df_clustered = perform_attitude_clustering(df_with_features, num_clusters=3)
+        df_clustered, label_mapping = perform_attitude_clustering(df_with_features, num_clusters=3)
         print("✓ Clustering completed\n", flush=True)
 
         # Add labels
         print("Mapping clusters to attitude labels...", flush=True)
-        df_labeled = add_attitude_labels(df_clustered)
+        df_labeled = add_attitude_labels(df_clustered, label_mapping)
         print("✓ Labels assigned\n", flush=True)
 
         # Display sample clusters
@@ -116,7 +123,36 @@ def test_attitude_clustering() -> None:
         print("=" * 70 + "\n", flush=True)
 
         artifact_path = config.get_artifact_path("visualizations")
+
+        # Generate clustering visualizations
         visualizations = create_all_attitude_visualizations(stats, artifact_path)
+
+        # Generate missing value visualizations
+        from .visualization.attitude_clustering_viz import (
+            create_missing_value_chart,
+            create_sample_loss_chart,
+            export_missing_value_table,
+        )
+
+        missing_viz = {
+            "missing_value_chart": create_missing_value_chart(
+                missing_stats["variable_missing_rates"],
+                str(Path(artifact_path) / "attitude_missing_values.png"),
+            ),
+            "sample_loss_chart": create_sample_loss_chart(
+                missing_stats["sample_loss"],
+                missing_stats["weighted_loss"],
+                str(Path(artifact_path) / "attitude_sample_loss.png"),
+            ),
+            "missing_value_table": export_missing_value_table(
+                missing_stats["variable_missing_rates"],
+                missing_stats["sample_loss"],
+                missing_stats["weighted_loss"],
+                str(Path(artifact_path) / "attitude_missing_values.csv"),
+            ),
+        }
+
+        visualizations.update(missing_viz)
 
         print("✓ Visualizations generated:", flush=True)
         for viz_name, viz_path in visualizations.items():
