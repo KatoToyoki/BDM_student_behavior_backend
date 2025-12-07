@@ -63,13 +63,21 @@ def test_attitude_clustering() -> None:
 
         # Prepare data (handle missing values)
         print("Preparing attitude data (removing rows with missing values)...", flush=True)
-        student_df_clean, missing_stats = prepare_attitude_data(student_df, weight_column="W_FSTUWT")
+        student_df_clean, missing_stats = prepare_attitude_data(
+            student_df, weight_column="W_FSTUWT"
+        )
         print("✓ Data prepared\n", flush=True)
 
         # Display missing value summary
         print("Missing Value Summary:", flush=True)
-        print(f"  Sample Loss: {missing_stats['sample_loss']['removed_count']:,} rows ({missing_stats['sample_loss']['loss_rate']:.2f}%)", flush=True)
-        print(f"  Weighted Population Loss: {missing_stats['weighted_loss']['removed_weighted']:,.0f} ({missing_stats['weighted_loss']['weighted_loss_rate']:.2f}%)", flush=True)
+        print(
+            f"  Sample Loss: {missing_stats['sample_loss']['removed_count']:,} rows ({missing_stats['sample_loss']['loss_rate']:.2f}%)",
+            flush=True,
+        )
+        print(
+            f"  Weighted Population Loss: {missing_stats['weighted_loss']['removed_weighted']:,.0f} ({missing_stats['weighted_loss']['weighted_loss_rate']:.2f}%)",
+            flush=True,
+        )
         print()
 
         # Create features

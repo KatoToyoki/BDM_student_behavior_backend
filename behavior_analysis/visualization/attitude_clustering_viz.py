@@ -76,7 +76,15 @@ def create_attitude_pie_chart(
 
     # Create pie chart
     fig, ax = plt.subplots(figsize=(10, 8))
-    colors = ["#95E1D3", "#FDB750", "#FF6B6B"]
+
+    # Assign fixed colors based on cluster semantic meaning
+    # Green = Proactive, Yellow = Average, Red = Disengaged
+    color_map = {
+        "Proactive Learners": "#95E1D3",  # Green - Positive
+        "Average Learners": "#FDB750",  # Yellow - Neutral
+        "Disengaged Learners": "#FF6B6B",  # Red - Concerning
+    }
+    colors = [color_map[cluster] for cluster in df["Cluster"]]
 
     wedges, texts, autotexts = ax.pie(
         df["Population %"],
@@ -135,7 +143,15 @@ def create_attitude_bar_chart(
 
     # Create bar chart
     fig, ax = plt.subplots(figsize=(10, 6))
-    colors = ["#95E1D3", "#FDB750", "#FF6B6B"]
+
+    # Assign fixed colors based on cluster semantic meaning
+    # Green = Proactive, Yellow = Average, Red = Disengaged
+    color_map = {
+        "Proactive Learners": "#95E1D3",  # Green - Positive
+        "Average Learners": "#FDB750",  # Yellow - Neutral
+        "Disengaged Learners": "#FF6B6B",  # Red - Concerning
+    }
+    colors = [color_map[cluster] for cluster in df["Cluster"]]
 
     bars = ax.bar(df["Cluster"], df[metric], color=colors, edgecolor="black", linewidth=1.5)
 
@@ -154,8 +170,16 @@ def create_attitude_bar_chart(
 
     ax.set_ylabel(metric, fontsize=12, weight="bold")
     ax.set_xlabel("Attitude Cluster", fontsize=12, weight="bold")
+
+    # Determine subtitle based on metric type
+    subtitle = (
+        "(Weighted Population Statistics)"
+        if "%" in metric or "Population" in metric
+        else "(Unweighted Sample Count)"
+    )
+
     ax.set_title(
-        f"Attitude Clustering: {metric}\n(Weighted Statistics)",
+        f"Attitude Clustering: {metric}\n{subtitle}",
         fontsize=14,
         weight="bold",
         pad=20,
@@ -362,24 +386,29 @@ def create_missing_value_chart(
     for var_name, stats in missing_stats.items():
         # Get readable variable name
         from ..analysis.attitude_clustering import ATTITUDE_DIMENSIONS
+
         readable_name = ATTITUDE_DIMENSIONS.get(var_name, var_name)
-        data.append({
-            "Variable": readable_name,
-            "Variable_Code": var_name,
-            "Missing_Rate": stats["missing_rate"],
-            "Missing_Count": stats["missing_count"],
-            "Valid_Count": stats["valid_count"],
-        })
+        data.append(
+            {
+                "Variable": readable_name,
+                "Variable_Code": var_name,
+                "Missing_Rate": stats["missing_rate"],
+                "Missing_Count": stats["missing_count"],
+                "Valid_Count": stats["valid_count"],
+            }
+        )
 
     df = pd.DataFrame(data)
 
     # Create bar chart
     fig, ax = plt.subplots(figsize=(10, 6))
-    colors = ["#FF6B6B" if x > 10 else "#FDB750" if x > 5 else "#95E1D3"
-              for x in df["Missing_Rate"]]
+    colors = [
+        "#FF6B6B" if x > 10 else "#FDB750" if x > 5 else "#95E1D3" for x in df["Missing_Rate"]
+    ]
 
-    bars = ax.bar(df["Variable"], df["Missing_Rate"], color=colors,
-                   edgecolor="black", linewidth=1.5)
+    bars = ax.bar(
+        df["Variable"], df["Missing_Rate"], color=colors, edgecolor="black", linewidth=1.5
+    )
 
     # Add value labels on bars
     for bar in bars:
@@ -450,12 +479,11 @@ def create_sample_loss_chart(
 
     # Unweighted sample
     colors1 = ["#95E1D3", "#FF6B6B"]
-    bars1 = ax1.bar(categories, sample_values, color=colors1,
-                     edgecolor="black", linewidth=1.5)
+    bars1 = ax1.bar(categories, sample_values, color=colors1, edgecolor="black", linewidth=1.5)
 
     for bar, val in zip(bars1, sample_values):
         height = bar.get_height()
-        percentage = (val / sample_loss["original_count"] * 100)
+        percentage = val / sample_loss["original_count"] * 100
         ax1.text(
             bar.get_x() + bar.get_width() / 2.0,
             height,
@@ -477,12 +505,11 @@ def create_sample_loss_chart(
 
     # Weighted population
     colors2 = ["#95E1D3", "#FF6B6B"]
-    bars2 = ax2.bar(categories, weighted_values, color=colors2,
-                     edgecolor="black", linewidth=1.5)
+    bars2 = ax2.bar(categories, weighted_values, color=colors2, edgecolor="black", linewidth=1.5)
 
     for bar, val in zip(bars2, weighted_values):
         height = bar.get_height()
-        percentage = (val / weighted_loss["original_weighted"] * 100)
+        percentage = val / weighted_loss["original_weighted"] * 100
         ax2.text(
             bar.get_x() + bar.get_width() / 2.0,
             height,
@@ -542,37 +569,60 @@ def export_missing_value_table(
 
     # Variable-level missing rates
     from ..analysis.attitude_clustering import ATTITUDE_DIMENSIONS
+
     data = []
     for var_name, stats in missing_stats.items():
         readable_name = ATTITUDE_DIMENSIONS.get(var_name, var_name)
-        data.append({
-            "Variable": readable_name,
-            "Variable_Code": var_name,
-            "Total_Count": stats["valid_count"] + stats["missing_count"],
-            "Valid_Count": stats["valid_count"],
-            "Missing_Count": stats["missing_count"],
-            "Missing_Rate_%": round(stats["missing_rate"], 2),
-        })
+        data.append(
+            {
+                "Variable": readable_name,
+                "Variable_Code": var_name,
+                "Total_Count": stats["valid_count"] + stats["missing_count"],
+                "Valid_Count": stats["valid_count"],
+                "Missing_Count": stats["missing_count"],
+                "Missing_Rate_%": round(stats["missing_rate"], 2),
+            }
+        )
 
     df = pd.DataFrame(data)
 
     # Add summary rows
-    summary_data = pd.DataFrame([
-        {"Variable": "--- SAMPLE LOSS SUMMARY ---", "Variable_Code": "", "Total_Count": "",
-         "Valid_Count": "", "Missing_Count": "", "Missing_Rate_%": ""},
-        {"Variable": "Original Sample", "Variable_Code": "",
-         "Total_Count": sample_loss["original_count"],
-         "Valid_Count": sample_loss["cleaned_count"],
-         "Missing_Count": sample_loss["removed_count"],
-         "Missing_Rate_%": round(sample_loss["loss_rate"], 2)},
-        {"Variable": "--- WEIGHTED POPULATION LOSS ---", "Variable_Code": "",
-         "Total_Count": "", "Valid_Count": "", "Missing_Count": "", "Missing_Rate_%": ""},
-        {"Variable": "Original Population", "Variable_Code": "",
-         "Total_Count": int(weighted_loss["original_weighted"]),
-         "Valid_Count": int(weighted_loss["cleaned_weighted"]),
-         "Missing_Count": int(weighted_loss["removed_weighted"]),
-         "Missing_Rate_%": round(weighted_loss["weighted_loss_rate"], 2)},
-    ])
+    summary_data = pd.DataFrame(
+        [
+            {
+                "Variable": "--- SAMPLE LOSS SUMMARY ---",
+                "Variable_Code": "",
+                "Total_Count": "",
+                "Valid_Count": "",
+                "Missing_Count": "",
+                "Missing_Rate_%": "",
+            },
+            {
+                "Variable": "Original Sample",
+                "Variable_Code": "",
+                "Total_Count": sample_loss["original_count"],
+                "Valid_Count": sample_loss["cleaned_count"],
+                "Missing_Count": sample_loss["removed_count"],
+                "Missing_Rate_%": round(sample_loss["loss_rate"], 2),
+            },
+            {
+                "Variable": "--- WEIGHTED POPULATION LOSS ---",
+                "Variable_Code": "",
+                "Total_Count": "",
+                "Valid_Count": "",
+                "Missing_Count": "",
+                "Missing_Rate_%": "",
+            },
+            {
+                "Variable": "Original Population",
+                "Variable_Code": "",
+                "Total_Count": int(weighted_loss["original_weighted"]),
+                "Valid_Count": int(weighted_loss["cleaned_weighted"]),
+                "Missing_Count": int(weighted_loss["removed_weighted"]),
+                "Missing_Rate_%": round(weighted_loss["weighted_loss_rate"], 2),
+            },
+        ]
+    )
 
     df_final = pd.concat([df, summary_data], ignore_index=True)
 

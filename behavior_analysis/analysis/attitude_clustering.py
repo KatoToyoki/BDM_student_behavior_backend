@@ -100,7 +100,9 @@ def prepare_attitude_data(
 
     df_clean = df.filter(condition)
     clean_count = df_clean.count()
-    clean_weighted = df_clean.select(f.sum(f.col(weight_column)).alias("total")).collect()[0]["total"]
+    clean_weighted = df_clean.select(f.sum(f.col(weight_column)).alias("total")).collect()[0][
+        "total"
+    ]
     clean_weighted = float(clean_weighted) if clean_weighted else 0
 
     # Calculate loss statistics
@@ -162,7 +164,9 @@ def create_attitude_features(df: DataFrame) -> DataFrame:
     max_st062 = float(max_st062_result)
     df_inverted = df.withColumn("ST062Q01TA_inverted", max_st062 + 1 - f.col("ST062Q01TA"))
 
-    logger.info(f"Inverted ST062Q01TA: max value = {max_st062}, using formula: {max_st062 + 1} - ST062Q01TA")
+    logger.info(
+        f"Inverted ST062Q01TA: max value = {max_st062}, using formula: {max_st062 + 1} - ST062Q01TA"
+    )
 
     # Prepare column list with inverted ST062Q01TA
     feature_cols = [
@@ -197,7 +201,9 @@ def create_attitude_features(df: DataFrame) -> DataFrame:
     return df_scaled
 
 
-def perform_attitude_clustering(df: DataFrame, num_clusters: int = 3) -> tuple[DataFrame, dict[int, str]]:
+def perform_attitude_clustering(
+    df: DataFrame, num_clusters: int = 3
+) -> tuple[DataFrame, dict[int, str]]:
     """
     Perform K-means clustering on standardized attitude features.
 
@@ -279,7 +285,7 @@ def _assign_cluster_labels(cluster_centers: list) -> dict[int, str]:
         labels = ["Proactive Learners", "Average Learners", "Disengaged Learners"]
     else:
         # For k > 3, generate labels like "Cluster 1 (High)", "Cluster 2 (Medium-High)", etc.
-        labels = [f"Cluster {i+1} (Engagement Rank {i+1})" for i in range(num_clusters)]
+        labels = [f"Cluster {i + 1} (Engagement Rank {i + 1})" for i in range(num_clusters)]
 
     for rank, (cluster_id, score) in enumerate(sorted_clusters):
         label_mapping[cluster_id] = labels[rank]
